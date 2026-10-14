@@ -147,7 +147,7 @@ python src/preprocess.py
 
 | 文件 | 说明 |
 |------|------|
-| `data/processed/tags.txt` | 词性标签频次表，每行 `标签\t频次`，可作为词性对照表使用 |
+| `data/processed/tags.txt` | 词性标签频次表，每行 `标签\t频次` |
 | `data/processed/meta.json` | 数据元信息，包含数据来源、训练/测试集规模、标签列表、标签分布等 |
 | `data/processed/hmm_model.json` | 训练好的 HMM 模型参数，包含 log π、log A、log B |
 

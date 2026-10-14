@@ -36,3 +36,5 @@ data/processed/
 
 # Logs
 *.log
+*.rar
+原始语料库文件(data中有同样内容)/
