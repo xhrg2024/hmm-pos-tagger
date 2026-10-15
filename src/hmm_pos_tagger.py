@@ -49,7 +49,7 @@ def compute_hmm_statistics(sentences):
 
     # ==================== 频数统计 ====================
     print("=" * 60)
-    print("第一步：从语料中统计 HMM 三要素")
+    print("第二步：从语料中统计 HMM 三要素")
     print("=" * 60)
     print(f"\n语料规模: {n_sentences} 句")
 

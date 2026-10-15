@@ -12,6 +12,8 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
 
 from segmenter import segment
 from viterbi_decoder import ViterbiDecoder
+from oov_handler import OOVHandler
+from preprocess import load_sentences
 
 # 标签中文说明
 TAG_DESC = {
@@ -41,9 +43,25 @@ def main():
     print('正在加载 HMM 模型...')
     decoder = ViterbiDecoder(model_path)
     print(f'模型加载完成（{len(decoder.tags)} 种标签）')
+
+    # 加载 OOV 处理器
+    print('正在加载 OOV 处理器...')
+    train_path = os.path.join(BASE_DIR, 'data', 'processed', 'train.txt')
+    if not os.path.exists(train_path):
+        print('警告: 训练数据不存在，将使用基线模型（无 OOV 优化）')
+    else:
+        import json
+        train_data = load_sentences(train_path)
+        with open(model_path, 'r', encoding='utf-8') as f:
+            model_data = json.load(f)
+        oov_handler = OOVHandler(train_data, model_data,
+                                 use_rules=True, use_char=True, use_avg=True)
+        decoder.set_oov_handler(oov_handler)
+        print(f'OOV 处理器已加载（规则 + 字符特征 + 标签平均平滑）')
+
     print()
     print('=' * 60)
-    print('  HMM 中文词性标注系统')
+    print('  HMM 中文词性标注系统（OOV 优化版）')
     print('  输入任意中文句子，输出分词和词性标注结果')
     print('  输入 q 或 quit 退出')
     print('=' * 60)
