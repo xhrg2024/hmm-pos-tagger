@@ -53,3 +53,42 @@ def segment_batch(sentences):
     list of list of str : 每句的分词结果
     """
     return [segment(sent) for sent in sentences]
+
+
+def tag_raw_sentence(sentence, decoder):
+    """
+    端到端词性标注: 原始句子 -> jieba分词 -> HMM标注
+
+    Parameters
+    ----------
+    sentence : str
+        原始中文句子
+    decoder : ViterbiDecoder
+        HMM Viterbi 解码器实例
+
+    Returns
+    -------
+    list of (str, str) : [(词语, 预测标签), ...]
+    """
+    words = segment(sentence)
+    words = [w for w in words if w.strip()]
+    return decoder.tag_sentence(words)
+
+
+def tag_raw_sentence_str(sentence, decoder):
+    """
+    端到端标注, 返回格式化字符串
+
+    Parameters
+    ----------
+    sentence : str
+        原始中文句子
+    decoder : ViterbiDecoder
+        HMM Viterbi 解码器实例
+
+    Returns
+    -------
+    str : "词1/标签1 词2/标签2 ..."
+    """
+    tagged = tag_raw_sentence(sentence, decoder)
+    return ' '.join(f'{w}/{t}' for w, t in tagged)

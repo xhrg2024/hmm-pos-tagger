@@ -33,6 +33,9 @@ class ViterbiDecoder:
         # 简化为一个较小的固定值
         self._unk_log_prob = math.log(1e-8)
 
+        # OOV 处理器（可选，通过 set_oov_handler 设置）
+        self._oov_handler = None
+
     def decode(self, words):
         """
         Viterbi 解码：给定词语序列，求最可能的标签序列
@@ -104,11 +107,24 @@ class ViterbiDecoder:
 
         return result
 
+    def set_oov_handler(self, oov_handler):
+        """
+        设置 OOV 处理器
+
+        Parameters
+        ----------
+        oov_handler : OOVHandler
+            OOV 处理器实例
+        """
+        self._oov_handler = oov_handler
+
     def _get_log_emit(self, tag, word):
         """获取 log P(word | tag)，处理未登录词"""
         if tag in self.log_B and word in self.log_B[tag]:
             return self.log_B[tag][word]
-        # 未登录词：返回一个较小的默认概率
+        # 未登录词：使用 OOV 处理器或默认概率
+        if self._oov_handler is not None:
+            return self._oov_handler.get_log_emit(tag, word, is_oov=True)
         return self._unk_log_prob
 
     def tag_sentence(self, words):

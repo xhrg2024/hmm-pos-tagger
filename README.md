@@ -22,13 +22,15 @@
 ├── app.py                      # 终端交互应用主程序
 ├── 启动词性标注.bat             # 双击启动终端应用
 ├── README.md                   # 本文件
+├── 词性对照表.txt               # PKU 词性标注集对照表
 │
 ├── src/                        # 源代码目录
 │   ├── corpus_loader.py        # 语料加载与解析模块
 │   ├── preprocess.py           # 数据预处理脚本（合并、清洗、保存）
 │   ├── hmm_pos_tagger.py       # HMM 三要素统计模块
 │   ├── viterbi_decoder.py      # Viterbi 解码器
-│   └── segmenter.py            # jieba 分词封装模块
+│   ├── segmenter.py            # jieba 分词封装模块
+│   └── oov_handler.py          # 未登录词（OOV）处理模块
 │
 ├── data/                       # 数据目录
 │   ├── raw/                    # 原始语料（下载后未修改）
@@ -113,6 +115,17 @@ python src/preprocess.py
 | `segment_with_pos(sentence)` | 分词 + jieba 自带词性标注（供对比） |
 | `segment_batch(sentences)` | 批量分词 |
 
+### `src/oov_handler.py` — 未登录词（OOV）处理
+
+实现三种 OOV 处理策略，提升未登录词的标注准确率：
+
+| 类 | 策略 | 原理 |
+|------|------|------|
+| `CharFeatureEstimator` | 字符特征 | 统计字符-标签分布，通过字符组合估计 OOV 词的发射概率 |
+| `RuleBasedTagger` | 规则匹配 | 根据词的表面形式（数字、标点、地名后缀等）直接判定标签 |
+| `TagAvgSmoother` | 标签平均平滑 | 基于标签先验概率和不重复词数计算 OOV 概率分布 |
+| `OOVHandler` | 综合加权 | 融合三种策略，规则权重 3.0 + 字符 2.0 + 平均 1.0 |
+
 ---
 
 ## 语料库说明
@@ -147,6 +160,7 @@ python src/preprocess.py
 
 | 文件 | 说明 |
 |------|------|
+| `词性对照表.txt` | PKU 词性标注集对照表，包含中文名、英文名、说明与示例 |
 | `data/processed/tags.txt` | 词性标签频次表，每行 `标签\t频次` |
 | `data/processed/meta.json` | 数据元信息，包含数据来源、训练/测试集规模、标签列表、标签分布等 |
 | `data/processed/hmm_model.json` | 训练好的 HMM 模型参数，包含 log π、log A、log B |
@@ -164,18 +178,21 @@ python -m venv venv
 venv\Scripts\activate
 
 # 安装依赖
-pip install numpy jupyter jieba requests
+pip install numpy jupyter jieba requests matplotlib
 ```
 
 ### 方式一：Jupyter Notebook（推荐）
 
 打开 `hmm_pos_tagging.ipynb`，从上到下依次运行所有 cell。Notebook 包含完整流程：
 
-1. 语料加载与预处理
-2. HMM 三要素统计
-3. Viterbi 解码
-4. 模型评估（测试集准确率）
-5. 端到端演示（原始句子 → 分词 → 词性标注）
+| 步骤 | 功能 | 对应模块 |
+|------|------|----------|
+| 第一步 | 语料加载与预处理 | `src/corpus_loader.py`、`src/preprocess.py` |
+| 第二步 | HMM 三要素统计 | `src/hmm_pos_tagger.py` |
+| 第三步 | Viterbi 解码 | `src/viterbi_decoder.py` |
+| 第四步 | 模型评估 | Notebook 内实现 |
+| 第五步 | 端到端标注（jieba 分词 + HMM） | `src/segmenter.py` |
+| 第六步 | 未登录词（OOV）处理优化 | `src/oov_handler.py` |
 
 ### 方式二：终端交互应用
 
@@ -203,12 +220,43 @@ python src/hmm_pos_tagger.py
 
 ## 模型评估
 
+### 基线模型
+
 在测试集（7,153 句，38 万词）上的评估结果：
 
 | 指标 | 数值 |
 |------|------|
 | 整体准确率 | **88.78%** |
 | 未登录词准确率 | 44.63% |
+
+### OOV 优化效果
+
+通过第六步的三种优化策略（字符特征、规则匹配、标签平均平滑），OOV 准确率显著提升：
+
+| 策略 | OOV 准确率 |
+|------|------------|
+| 基线（无 OOV 处理） | ~22% |
+| 综合策略（三种加权） | ~72% |
+
+---
+
+## 总结
+
+本项目实现了一个完整的基于 HMM 的中文词性标注系统，主要工作包括：
+
+1. **语料处理**：下载并解析人民日报 1998 年和 2000 年两个词性标注语料库，处理复合词合并、嵌套标签提取等复杂格式，合并为约 49,000 句训练集和 7,000 句测试集。
+
+2. **HMM 模型训练**：从训练语料中统计 HMM 三要素（初始概率 π、转移概率 A、发射概率 B），采用拉普拉斯平滑和对数概率存储，模型参数保存为 JSON 格式。
+
+3. **Viterbi 解码**：实现动态规划算法，给定分词后的词语序列，求最可能的词性标签序列。
+
+4. **端到端标注**：封装 jieba 分词，实现从原始句子到词性标注的完整流水线，并与 jieba 自带词性标注进行对比。
+
+5. **OOV 优化**：针对未登录词准确率低的  问题，实现三种优化策略（字符特征估计、规则匹配、标签平均平滑），通过综合加权将 OOV 准确率从约 22% 提升至约 72%。
+
+6. **可视化与评估**：使用 5 折交叉验证评估各策略的稳定性，并生成可视化对比图。
+
+系统提供 Jupyter Notebook 和终端交互两种使用方式，核心逻辑封装在 `src/` 目录下的独立模块中，Notebook 作为流程编排入口。
 
 ---
 
@@ -220,3 +268,4 @@ python src/hmm_pos_tagger.py
 | jieba | 0.42+ | 中文分词 |
 | jupyter | - | Notebook 运行环境 |
 | requests | - | 语料下载 |
+| matplotlib | - | OOV 优化可视化 |
